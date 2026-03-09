@@ -1,0 +1,60 @@
+<% require "dotenv"; Dotenv.load(".env.local") %>
+
+# devx-tts Kamal Deployment Configuration
+service: devx-tts
+image: <%= ENV["GHCR_USERNAME"] || ENV["GITHUB_ACTOR"] %>/devx-tts
+
+# Deploy to VPS
+servers:
+  web:
+    hosts:
+      - <%= ENV["CONTABO_VM_IP"] %>
+
+# Build on VPS via remote builder
+builder:
+  remote: ssh://root@<%= ENV["CONTABO_VM_IP"] %>
+  arch: amd64
+  driver: docker
+
+# Use GitHub Container Registry (GHCR)
+registry:
+  server: ghcr.io
+  username: <%= ENV["GHCR_USERNAME"] || ENV["GITHUB_ACTOR"] %>
+  password: <%= ENV["GHCR_TOKEN"] || ENV["GITHUB_TOKEN"] %>
+
+# SSH configuration
+ssh:
+  user: root
+
+# SSL with Let's Encrypt + kamal-proxy
+proxy:
+  ssl: true
+  hosts:
+    - <%= ENV["TTS_DOMAIN"] %>
+  app_port: 8080
+  response_timeout: 900
+  healthcheck:
+    path: /health
+    interval: 10
+
+# Environment variables for the gateway
+env:
+  clear:
+    DEVX_API_KEY: <%= ENV["DEVX_API_KEY"] %>
+
+# Devx TTS core runtime (same host, internal network)
+# Custom image with /restart endpoint that triggers container restart via SIGTERM to supervisord
+accessories:
+  devx-tts-core:
+    image: ghcr.io/<%= ENV["GHCR_USERNAME"] || ENV["GITHUB_ACTOR"] %>/kokoro-fastapi-restart:latest
+    host: <%= ENV["CONTABO_VM_IP"] %>
+    port: 8880
+    env:
+      clear:
+        HF_TOKEN: <%= ENV["HF_TOKEN"] %>
+        RESTART_SERVER_PORT: "8881"
+        RESTART_API_KEY: <%= ENV["KOKORO_RESTART_API_KEY"] || ENV["DEVX_API_KEY"] %>
+
+# Startup timing
+boot:
+  limit: 30

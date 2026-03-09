@@ -1,0 +1,27 @@
+{
+  admin off
+}
+
+:8080 {
+  rate_limit {
+    zone api_limits {
+      key {remote_host}
+      events 100
+      window 1m
+    }
+  }
+
+  @health path /health
+  respond @health "ok" 200
+
+  @unauthorized not header X-Api-Key ${DEVX_API_KEY}
+  respond @unauthorized "unauthorized" 401
+
+  reverse_proxy devx-tts-devx-tts-core:8880 {
+    transport http {
+      read_timeout 10m
+      write_timeout 10m
+      dial_timeout 10s
+    }
+  }
+}

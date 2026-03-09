@@ -1,0 +1,18 @@
+services:
+  devx-tts-core:
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:latest
+    env_file:
+      - .env.local
+    ports:
+      - "8880:8880"
+
+  gateway:
+    build: .
+    env_file:
+      - .env.local
+    ports:
+      - "8881:8080"
+    depends_on:
+      - devx-tts-core
+    profiles:
+      - gateway
